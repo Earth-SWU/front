@@ -19,10 +19,19 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.riny127.myapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f6eefeb7-e08b-448c-8f6b-425573dc0abf"
+      }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
