@@ -163,7 +163,7 @@ const LogIn = () => {
         </InputContainer>
 
         {/* 로그인 버튼 */}
-        <LoginButton onPress={() => navigation.navigate("Home")}>
+        <LoginButton onPress={() => navigation.replace("Main")}>
           <LoginButtonText>Log in</LoginButtonText>
         </LoginButton>
       </LoginContainer>

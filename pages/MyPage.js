@@ -4,6 +4,7 @@ import styled from "styled-components/native";
 import { useNavigation } from "@react-navigation/native";
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen";
 import * as Font from "expo-font";
+import { Calendar } from "react-native-calendars";
 
 // 전체 컨테이너
 const Container = styled.View`
@@ -38,7 +39,7 @@ const LogoText = styled.Text`
   text-align: left;
 `;
 
-const ForgotPwd = () => {
+const MyPage = () => {
   const [fontLoaded, setFontLoaded] = useState(false);
   const navigation = useNavigation(); // 네비게이션 훅 사용
 
@@ -59,16 +60,37 @@ const ForgotPwd = () => {
 
   return (
     <Container>
-      <BackgroundImage source={require("../assets/Background.png")} resizeMode="cover" />
+        <BackgroundImage source={require("../assets/Background.png")} resizeMode="cover" />
 
-      {/* 로고 */}
-      <Header>
-        <LogoText>EcoStep</LogoText>
-      </Header>
+        {/* 로고 */}
+        <Header>
+            <LogoText>EcoStep</LogoText>
+        </Header>
 
-      
+        {/* 캘린더 추가 */}
+        <View style={{ marginTop: hp("18%"), paddingHorizontal: wp("8%") }}>
+            <Calendar
+            // 기본 날짜 설정
+            current={new Date().toISOString().split('T')[0]} // 오늘 날짜로 설정
+            minDate={"2023-01-01"} // 캘린더 최소 날짜 설정
+            onDayPress={(day) => {
+                console.log("selected day", day);
+            }}
+            monthFormat={"yyyy MM"} // 월 포맷
+            hideExtraDays={true} // 보이지 않는 날 숨기기
+            theme={{
+                selectedDayBackgroundColor: "#32b9b4", // 선택된 날의 배경색
+                selectedDayTextColor: "#fff", // 선택된 날의 텍스트 색
+                todayTextColor: "#32b9b4", // 오늘 날짜의 텍스트 색
+                dayTextColor: "#000", // 일반적인 날의 텍스트 색
+                arrowColor: "#32b9b4", // 화살표 색상
+                monthTextColor: "#32b9b4", // 월 텍스트 색
+                textSectionTitleColor: "#32b9b4", // 월 이름 텍스트 색
+            }}
+            />
+        </View>
     </Container>
   );
 };
 
-export default ForgotPwd;
+export default MyPage;

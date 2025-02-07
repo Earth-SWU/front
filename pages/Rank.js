@@ -4,6 +4,7 @@ import styled from "styled-components/native";
 import { useNavigation } from "@react-navigation/native";
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen";
 import * as Font from "expo-font";
+import TabBar from "../components/TabBar";
 
 // 전체 컨테이너
 const Container = styled.View`
@@ -38,7 +39,7 @@ const LogoText = styled.Text`
   text-align: left;
 `;
 
-const ForgotPwd = () => {
+const Rank = () => {
   const [fontLoaded, setFontLoaded] = useState(false);
   const navigation = useNavigation(); // 네비게이션 훅 사용
 
@@ -66,9 +67,8 @@ const ForgotPwd = () => {
         <LogoText>EcoStep</LogoText>
       </Header>
 
-      
     </Container>
   );
 };
 
-export default ForgotPwd;
+export default Rank;
