@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     },
     image: {
         width: wp("75%"),
-        height: hp("40%"),
+        height: hp("45%"),
         resizeMode: "contain",
     },
 });

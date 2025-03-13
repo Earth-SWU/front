@@ -26,7 +26,7 @@ const BackgroundImage = styled.Image`
 // 로고
 const Header = styled.View`
   position: absolute;
-  top: ${hp("7%")}px;
+  top: ${hp("8%")}px;
   left: ${wp("8%")}px;
   width: ${wp("80%")}px;
 `;
@@ -45,15 +45,15 @@ const StatusContainer = styled.View`
   flex-direction: column;
   align-items: center;
   position: absolute;
-  top: ${hp("10%")};  /* 비료와 물의 컨테이너 위치를 화면 비율에 맞게 조정 */
+  top: ${hp("16%")};  /* 비료와 물의 컨테이너 위치를 화면 비율에 맞게 조정 */
   right: ${wp("5%")}; /* 오른쪽 간격 */
   gap: ${hp("1%")};  /* 요소 사이 간격을 비율로 */
 `;
 
 // 비료와 물 아래에 있는 원
 const Circle = styled.View`
-  width: ${wp("18%")}; /* 원의 크기를 화면 비율에 맞게 조정 */
-  height: ${wp("18%")};
+  width: ${wp("14%")}; /* 원의 크기를 화면 비율에 맞게 조정 */
+  height: ${wp("14%")};
   border-radius: ${wp("10%")}; /* 원형을 만들기 위해 반지름을 크기 절반으로 */
   background-color: #fff;
   align-items: center;
@@ -79,22 +79,22 @@ const Status = styled.View`
 
 // 비료와 물 아이콘
 const Icon = styled.Image`
-  width: ${wp("16%")};
-  height: ${wp("16%")};
+  width: ${wp("14%")};
+  height: ${wp("14%")};
   position: absolute;
   top: -${hp("1.5%")};
-  left: ${wp("1%")};  
+  left: ${wp("0.2%")};  
 `;
 
 // 비료와 물 개수
 const Count = styled.Text`
-  font-size: ${wp("4%")}; 
+  font-size: ${wp("3%")}; 
   font-weight: 700;
   font-family: "Montserrat-Bold";
   color: #000;
   text-align: center;
   position: absolute;
-  top: ${hp("5%")};
+  top: ${hp("4%")};
 `;
 
 // 식물 보이는 컨테이너
@@ -104,9 +104,10 @@ const ImageContainer = styled.View`
   justify-content: center;
 `;
 
+// 식물 이미지
 const TreeImage = styled.Image`
-  width: ${wp("70%")};
-  height: ${wp("70%")};
+  width: ${wp("90%")};
+  height: ${wp("90%")};
   position: absolute;
   resize-mode: contain;  // 비율을 유지하면서 화면에 맞게 축소
 `;
@@ -236,6 +237,7 @@ const MissionDescription = styled.Text`
 const WateringIcon = styled.Image`
   width: ${wp("17%")};
   height: ${wp("17%")};
+  margin-left: ${wp("8%")};
 `;
 
 const Home = () => {
@@ -260,10 +262,10 @@ const Home = () => {
 
   // 각 레벨에 맞는 이미지 배열 (이미지 파일을 프로젝트에 넣고 경로 설정)
   const imageSources = [
-    require("../assets/level1.png"),  // 레벨 1 이미지
-    require("../assets/level2.png"),  // 레벨 2 이미지
-    require("../assets/level3.png"),  // 레벨 3 이미지
-    require("../assets/level4.png"),  // 레벨 4 이미지
+    require("../assets/splash1.png"),  // 레벨 1 이미지
+    require("../assets/splash2.png"),  // 레벨 2 이미지
+    require("../assets/splash3.png"),  // 레벨 3 이미지
+    require("../assets/splash4.png"),  // 레벨 4 이미지
   ];
 
   useEffect(() => {
@@ -292,12 +294,12 @@ const Home = () => {
 
       {/* 오른쪽 상단 컨테이너 */}
       <StatusContainer>
-        {/* 비료 */}
+        {/* 비료
         <Status>
           <Circle/>
           <Icon source={require("../assets/fertilizer.png")} />
           <Count>{fertilizerCount}</Count>
-        </Status>
+        </Status> */}
         {/* 물 */}
         <Status>
           <Circle/>
@@ -337,7 +339,7 @@ const Home = () => {
         <MissionContainer onPress={showModal}>
           <MissionTextContainer>
             <MissionTitle>Today's Mission</MissionTitle>
-            <MissionDescription>Complete Mission and earn water!</MissionDescription>
+            <MissionDescription>미션을 수행하고 물을 받으세요!</MissionDescription>
           </MissionTextContainer>
           <WateringIcon source={require("../assets/wateringcan.png")} />
         </MissionContainer>

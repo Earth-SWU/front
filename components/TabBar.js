@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Animated, Text, TouchableOpacity } from "react-native";
+import { Text, TouchableOpacity, Animated } from "react-native";
 import styled from "styled-components/native";
 import { useNavigation } from "@react-navigation/native";
 import { SvgXml } from "react-native-svg";
@@ -10,7 +10,7 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-nat
 const rankingSvg = `
   <svg xmlns="http://www.w3.org/2000/svg" width="37" height="37" viewBox="0 0 37 37" fill="none">
     <circle cx="18.5" cy="18.5" r="18.5" fill="#32B9B4"/>
-    <path d="M13.3113 24.8314C12.8361 24.3561 13.0838 24.4901 11.9376 24.1833C11.4175 24.0439 10.9603 23.7759 10.5469 23.4549L8.06573 29.5382C7.82566 30.1272 8.27409 30.767 8.90955 30.743L11.791 30.6331L13.7729 32.7265C14.2104 33.188 14.9782 33.0442 15.2182 32.4552L18.0647 25.4761C17.4719 25.8064 16.814 26 16.1337 26C15.0673 26 14.0654 25.585 13.3113 24.8314ZM28.9343 29.5382L26.4531 23.4549C26.0397 23.7765 25.5825 24.0439 25.0624 24.1833C23.9102 24.4918 24.1628 24.3572 23.6887 24.8314C22.9346 25.585 21.9322 26 20.8658 26C20.1855 26 19.5276 25.8059 18.9348 25.4761L21.7812 32.4552C22.0213 33.0442 22.7896 33.188 23.2266 32.7265L25.209 30.6331L28.0904 30.743C28.7259 30.767 29.1743 30.1267 28.9343 29.5382ZM22.3828 23.5938C23.2184 22.7434 23.3141 22.8167 24.5041 22.4924C25.2637 22.2852 25.8576 21.6809 26.061 20.9076C26.4701 19.3545 26.364 19.5421 27.4801 18.4057C28.0363 17.8397 28.2534 17.0145 28.05 16.2412C27.6415 14.6892 27.6409 14.9058 28.05 13.3521C28.2534 12.5789 28.0363 11.7537 27.4801 11.1877C26.364 10.0513 26.4701 10.2383 26.061 8.68576C25.8576 7.91249 25.2637 7.30821 24.5041 7.10095C22.9794 6.68478 23.1632 6.79361 22.0459 5.65668C21.4897 5.09067 20.6787 4.86919 19.9191 5.07646C18.395 5.49207 18.6077 5.49262 17.0809 5.07646C16.3213 4.86919 15.5103 5.09013 14.9541 5.65668C13.8379 6.79306 14.0217 6.68478 12.4965 7.10095C11.7369 7.30821 11.143 7.91249 10.9395 8.68576C10.531 10.2383 10.6366 10.0513 9.5204 11.1877C8.96424 11.7537 8.74658 12.5789 8.95057 13.3521C9.35908 14.9031 9.35963 14.6865 8.95057 16.2407C8.74713 17.014 8.96424 17.8392 9.5204 18.4057C10.6366 19.5421 10.5305 19.3545 10.9395 20.9076C11.143 21.6809 11.7369 22.2852 12.4965 22.4924C13.7204 22.826 13.8117 22.7735 14.6172 23.5938C15.3407 24.3304 16.4678 24.4622 17.3374 23.9121C17.6851 23.6914 18.0884 23.5741 18.5003 23.5741C18.9121 23.5741 19.3155 23.6914 19.6632 23.9121C20.5322 24.4622 21.6593 24.3304 22.3828 23.5938ZM13.3408 14.6231C13.3408 11.723 15.6508 9.37207 18.5 9.37207C21.3492 9.37207 23.6592 11.723 23.6592 14.6231C23.6592 17.5231 21.3492 19.8741 18.5 19.8741C15.6508 19.8741 13.3408 17.5231 13.3408 14.6231Z" fill="white"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M19.2725 13.0638C19.4777 12.8447 19.6034 12.5494 19.6034 12.2245C19.6034 11.5482 19.0585 11 18.3864 11C17.7143 11 17.1694 11.5482 17.1694 12.2245C17.1694 12.5434 17.2906 12.8338 17.4891 13.0517L13.9751 17.489L7.4019 15.2602C7.42291 15.1701 7.43402 15.0762 7.43402 14.9796C7.43402 14.3033 6.88914 13.7551 6.21701 13.7551C5.54487 13.7551 5 14.3033 5 14.9796C5 15.6559 5.54487 16.2041 6.21701 16.2041C6.23939 16.2041 6.26163 16.2035 6.28371 16.2023L8.80282 26H18.3868V13.449L18.388 13.449V26H27.7323L30.1884 16.2023C30.2102 16.2035 30.2322 16.2041 30.2542 16.2041C30.9264 16.2041 31.4712 15.6559 31.4712 14.9796C31.4712 14.3033 30.9264 13.7551 30.2542 13.7551C29.5821 13.7551 29.0372 14.3033 29.0372 14.9796C29.0372 15.0795 29.0491 15.1766 29.0715 15.2695L22.6893 17.489L19.2725 13.0638Z" fill="white"/>
   </svg>
 `;
 
@@ -47,7 +47,7 @@ const TabWrapper = styled.View`
   position: absolute;
   width: ${wp("90%")}px;
   bottom: ${hp("5%")};
-  left: ${wp("5%")}px;
+  left: ${wp("5%")};
   right: 0;
 `;
 
@@ -56,7 +56,8 @@ const TabButton = styled.TouchableOpacity`
   flex: 1;
 `;
 
-const AnimatedIcon = styled(Animated.View)`
+// 애니메이션 효과가 필요없으므로 Animated 대신 일반 View 사용
+const IconWrapper = styled.View`
   align-items: center;
 `;
 
@@ -73,13 +74,7 @@ const TabLabel = styled.Text`
 const TabBar = ({ selectedTab, setSelectedTab }) => {
   const navigation = useNavigation();
   const [fontLoaded, setFontLoaded] = useState(false);
-
-  // 애니메이션 값 설정
-  const scaleAnim = {
-    Rank: useState(new Animated.Value(1))[0],
-    Home: useState(new Animated.Value(1))[0],
-    MyPage: useState(new Animated.Value(1))[0],
-  };
+  const scaleAnim = useState(new Animated.Value(1.8))[0];
 
   useEffect(() => {
     const loadFonts = async () => {
@@ -96,73 +91,43 @@ const TabBar = ({ selectedTab, setSelectedTab }) => {
     return <Text>Loading...</Text>;
   }
 
-  // 탭 변경 함수
+  // 탭 변경 시
   const handleTabPress = (tab) => {
     setSelectedTab(tab);
-    navigation.navigate('Main', { screen: tab });  // 수정된 부분
-
-    // 아이콘 크기 애니메이션 실행 (아이콘이 커지고 유지됨)
-    Animated.spring(scaleAnim[tab], {
-      toValue: 1.8, // 커지는 크기
-      useNativeDriver: true,
-    }).start();
-
-    // 다른 아이콘 크기를 원래대로 돌아가게 만드는 애니메이션
-    Object.keys(scaleAnim).forEach((key) => {
-      if (key !== tab) {
-        Animated.spring(scaleAnim[key], {
-          toValue: 1, // 크기 복원
-          useNativeDriver: true,
-        }).start();
-      }
-    });
+    navigation.navigate("Main", { screen: tab });
   };
 
   return (
     <TabWrapper>
       {/* 랭킹 탭 */}
       <TabButton onPress={() => handleTabPress("Rank")}>
-        <AnimatedIcon
-          style={{
-            transform: [
-              { scale: scaleAnim.Rank },
-              { translateY: selectedTab === "Rank" ? -hp("1.2%") : 0 },
-            ],
-          }}
-        >
-          <SvgXml xml={rankingSvg} width={selectedTab === "Rank" ? 45 : 32} height={selectedTab === "Rank" ? 45 : 32} />
-        </AnimatedIcon>
-        {selectedTab !== "Rank" && <TabLabel selected={selectedTab === "Rank"}>Rank</TabLabel>}
+        <IconWrapper>
+          <SvgXml xml={rankingSvg} width={32} height={32} />
+        </IconWrapper>
+        <TabLabel selected={selectedTab === "Rank"}>Rank</TabLabel>
       </TabButton>
 
       {/* 홈 탭 */}
       <TabButton onPress={() => handleTabPress("Home")}>
-        <AnimatedIcon
+        <Animated.View
           style={{
+            alignItems: "center",
             transform: [
-              { scale: scaleAnim.Home },
-              { translateY: selectedTab === "Home" ? -hp("1.2%") : 0 },
+              { scale: scaleAnim }, // 항상 1.8배 크기 유지
+              { translateY: -hp("1.2%") }, // 항상 위로 살짝 이동
             ],
           }}
         >
-          <SvgXml xml={homeSvg} width={selectedTab === "Home" ? 45 : 32} height={selectedTab === "Home" ? 45 : 32} />
-        </AnimatedIcon>
-        {selectedTab !== "Home" && <TabLabel selected={selectedTab === "Home"}>Home</TabLabel>}
+          <SvgXml xml={homeSvg} width={45} height={45} />
+        </Animated.View>
       </TabButton>
 
       {/* 마이페이지 탭 */}
       <TabButton onPress={() => handleTabPress("MyPage")}>
-        <AnimatedIcon
-          style={{
-            transform: [
-              { scale: scaleAnim.MyPage },
-              { translateY: selectedTab === "MyPage" ? -hp("1.2%") : 0 },
-            ],
-          }}
-        >
-          <SvgXml xml={myPageSvg} width={selectedTab === "MyPage" ? 45 : 32} height={selectedTab === "MyPage" ? 45 : 32} />
-        </AnimatedIcon>
-        {selectedTab !== "MyPage" && <TabLabel selected={selectedTab === "MyPage"}>My</TabLabel>}
+        <IconWrapper>
+          <SvgXml xml={myPageSvg} width={32} height={32} />
+        </IconWrapper>
+        <TabLabel selected={selectedTab === "MyPage"}>My</TabLabel>
       </TabButton>
     </TabWrapper>
   );

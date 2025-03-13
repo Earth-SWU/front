@@ -24,7 +24,7 @@ const BackgroundImage = styled.Image`
 // 로고
 const Header = styled.View`
   position: absolute;
-  top: ${hp("7%")}px;
+  top: ${hp("8%")}px;
   left: ${wp("8%")}px;
   width: ${wp("80%")}px;
 `;
@@ -101,6 +101,7 @@ const ActionText = styled.Text`
 
 // 로그인 버튼
 const LoginButton = styled.TouchableOpacity`
+  top: ${hp("2%")}px;
   border-radius: ${wp("5%")}px;
   background-color: #32b9b4;
   width: 100%;
@@ -148,16 +149,16 @@ const LogIn = () => {
 
       {/* 로그인 입력 컨테이너 */}
       <LoginContainer>
-        <TitleText>Get Started</TitleText>
+        <TitleText>Log in</TitleText>
 
         {/* 로그인 입력 필드 */}
         <InputContainer>
-          <InputField placeholder="Username" placeholderTextColor="#32b9b4" />
-          <InputField placeholder="Password" placeholderTextColor="#32b9b4" secureTextEntry />
+          <InputField placeholder="your email" placeholderTextColor="#D1D1D1" />
+          <InputField placeholder="password" placeholderTextColor="#D1D1D1" secureTextEntry />
 
           {/* 회원가입 & 비밀번호 찾기 감싸는 부분 */}
           <Wrapper>
-            <ActionText onPress={() => navigation.navigate("SignIn")}>Sign in</ActionText>
+            <ActionText onPress={() => navigation.navigate("SignupStep1")}>Sign up</ActionText>
             <ActionText onPress={() => navigation.navigate("ForgotPwd")}>Forgot password?</ActionText>
           </Wrapper>
         </InputContainer>

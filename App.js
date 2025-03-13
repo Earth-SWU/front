@@ -5,12 +5,16 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import LogIn from "./pages/LogIn";
 import Splash from "./pages/Splash";
+import SelectTree from "./pages/SelectTree";
 import Home from "./pages/Home";
-import SignIn from "./pages/SignIn";
 import ForgotPwd from "./pages/ForgotPwd";
 import Rank from "./pages/Rank";
 import MyPage from "./pages/MyPage";
 import TabBar from "./components/TabBar"; // 커스텀 TabBar
+import SignupStep1 from "./pages/SignupStep1";
+import SignupStep2 from "./pages/SignupStep2";
+import Badge from "./pages/Badge";
+import BadgeCollectionScreen from "./pages/BadgeCollectionScreen";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -41,9 +45,13 @@ export default function App() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={Splash} />
         <Stack.Screen name="LogIn" component={LogIn} />
-        <Stack.Screen name="SignIn" component={SignIn} />
+        <Stack.Screen name="SignupStep1" component={SignupStep1} />
+        <Stack.Screen name="SelectTree" component={SelectTree} />
+        <Stack.Screen name="SignupStep2" component={SignupStep2} />
         <Stack.Screen name="ForgotPwd" component={ForgotPwd} />
         <Stack.Screen name="Main" component={BottomTabNavigator} />
+        <Stack.Screen name="Badge" component={Badge} />
+        <Stack.Screen name="BadgeCollection" component={BadgeCollectionScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -25,7 +25,7 @@ const BackgroundImage = styled.Image`
 // 로고+설명
 const Header = styled.View`
   position: absolute;
-  top: ${hp("7%")}px;
+  top: ${hp("8%")}px;
   left: ${wp("8%")}px;
   width: ${wp("80%")}px;
 `;
@@ -52,7 +52,7 @@ const SloganText = styled.Text`
 // 시작 버튼 컨테이너
 const StartButtonContainer = styled.View`
   position: absolute;
-  top: ${hp("75%")}px;
+  top: ${hp("80%")}px;
   left: ${wp("12%")}px;
   width: ${wp("80%")}px;
 `;
@@ -102,7 +102,7 @@ const Splash = () => {
       {/* 로고 및 설명 */}
       <Header>
         <LogoText>EcoStep</LogoText>
-        <SloganText>"Another step closer to sustainable living today!"</SloganText>
+        <SloganText>오늘도 친환경에</SloganText><SloganText>한 걸음 다가가는 생활!</SloganText>
       </Header>
 
       {/* 무한 스크롤 이미지 */}

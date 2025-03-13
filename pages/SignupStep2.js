@@ -170,7 +170,7 @@ const SubmitButtonText = styled.Text`
   color: #fff;
 `;
 
-const SignIn = () => {
+const SignupStep2 = () => {
   // 미디어 라이브러리 접근 권한
   const [status, requestPermission] = ImagePicker.useMediaLibraryPermissions();
   const [imageUrl, setImageUrl] = useState(null);
@@ -632,4 +632,4 @@ const SignIn = () => {
   );
 };
 
-export default SignIn;
+export default SignupStep2;
