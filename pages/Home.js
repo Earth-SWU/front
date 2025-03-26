@@ -6,6 +6,8 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-nat
 import * as Font from "expo-font";
 import TabBar from "../components/TabBar";
 import Modal from "../components/Modal";
+import { getTreeDate, waterTree } from '../api/HomeApi';
+import { getAccessToken } from "../Auth";
 
 // 전체 컨테이너
 const Container = styled.View`
@@ -71,7 +73,7 @@ const Circle = styled.View`
 `;
 
 // 비료와 물
-const Status = styled.View`
+const Status = styled(TouchableOpacity)`
   align-items: center;
   position: relative;
   margin-top: ${hp("2%")};  /* 상태들 간 간격을 비율로 조정 */
@@ -243,13 +245,13 @@ const WateringIcon = styled.Image`
 const Home = () => {
   const [fontLoaded, setFontLoaded] = useState(false);
   const navigation = useNavigation(); // 네비게이션 훅 사용
+  const [userId, setUserId] = useState(null);
   const [fertilizerCount, setFertilizerCount] = useState(0);
   const [waterCount, setWaterCount] = useState(0);
   const [level, setLevel] = useState(1);  // 레벨 단계
   const [showMission, setShowMission] = useState(false); // 미션 창 보이기 여부
   const [progress, setProgress] = useState(50);  // 진행 상태
-  const name = "swuni";
-
+  const [name, setName] = useState('');
   const [modalVisible, setModalVisible] = useState(false);  // 모달의 표시 여부
 
   const showModal = () => {
@@ -279,6 +281,53 @@ const Home = () => {
     loadFonts();
   }, []);
 
+  useEffect(() => {
+    const fetchTreeData = async () => {
+      try {
+        const token = await getAccessToken();
+        if (token) {
+          const data = await getTreeDate(token);
+          setName(data.treeName);
+          setLevel(data.level);
+          setWaterCount(data.water);
+          setProgress(data.growth);
+        }
+      } catch (error) {
+        console.error("Tree data fetch error:", error);
+      }
+    };
+  
+    // 초기 데이터 불러오기 (앱 실행 시)
+    fetchTreeData();
+  
+    let interval;
+    
+    // 모달이 열려 있을 때만 5초마다 API 호출
+    if (modalVisible) {
+      interval = setInterval(fetchTreeData, 5000);
+    }
+  
+    // 컴포넌트 언마운트 or 모달 닫힐 때 인터벌 정리
+    return () => clearInterval(interval);
+  
+  }, [modalVisible]); // modalVisible이 변경될 때마다 실행  
+  
+  const handleWaterTree = async () => {
+    try {
+      const token = await getAccessToken();
+      if (token) {
+        const updatedData = await waterTree(token);
+        setLevel(updatedData.level);
+        setWaterCount(updatedData.water);
+        setProgress(updatedData.growth);
+
+        fetchTreeData();
+      }
+    } catch (error) {
+      Alert.alert("물주기 실패", error.message);
+    }
+  };
+
   if (!fontLoaded) {
     return <Text>Loading...</Text>;
   }
@@ -301,7 +350,7 @@ const Home = () => {
           <Count>{fertilizerCount}</Count>
         </Status> */}
         {/* 물 */}
-        <Status>
+        <Status onPress={waterCount > 0 ? handleWaterTree : null} disabled={waterCount === 0}>
           <Circle/>
           <Count>{waterCount}</Count>
           <Icon source={require("../assets/water.png")} />

@@ -6,6 +6,8 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-nat
 import * as Font from "expo-font";
 import TabBar from "../components/TabBar";
 import { ScrollView } from "react-native-gesture-handler";
+import { getRankings } from "../api/RankApi";
+import { getAccessToken } from "../Auth";
 
 // 전체 컨테이너
 const Container = styled.View`
@@ -137,21 +139,7 @@ const PercentText = styled.Text`
 
 const Rank = () => {
   const [fontLoaded, setFontLoaded] = useState(false);
-  const navigation = useNavigation(); 
-
-  // 랭킹 데이터 (임의 설정)
-  const rankings = [
-    { rank: 1, name: "swuni", level: "99%", image: require("../assets/rank1.png") },
-    { rank: 2, name: "개똥", level: "99%", image: require("../assets/rank2.png") },
-    { rank: 3, name: "비타민부족", level: "99%", image: require("../assets/rank2.png") },
-    { rank: 4, name: "뚜비두밥", level: "98%", image: require("../assets/profile.png") },
-    { rank: 5, name: "자각몽마스터", level: "95%", image: require("../assets/profile.png") },
-    { rank: 6, name: "마시멜로", level: "92%", image: require("../assets/profile.png") },
-    { rank: 7, name: "코딩마스터", level: "88%", image: require("../assets/profile.png") },
-    { rank: 8, name: "냥냥펀치", level: "85%", image: require("../assets/profile.png") },
-    { rank: 9, name: "스페이스오디세이", level: "83%", image: require("../assets/profile.png") },
-    { rank: 10, name: "무한도전", level: "80%", image: require("../assets/profile.png") },
-  ];
+  const [rankings, setRankings] = useState([]);
 
   useEffect(() => {
     const loadFonts = async () => {
@@ -161,8 +149,21 @@ const Rank = () => {
       setFontLoaded(true);
     };
 
+    const fetchRankings = async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) throw new Error("토큰을 찾을 수 없습니다.");
+
+        const data = await getRankings(token);
+        setRankings(data);
+      } catch (error) {
+        console.error("랭킹 데이터 로딩 실패:", error.message);
+      }
+    };
+
     loadFonts();
-  }, []);
+    fetchRankings();
+  }, [rankings]);
 
   if (!fontLoaded) {
     return <Text>Loading...</Text>;
@@ -187,9 +188,13 @@ const Rank = () => {
           {topRankings.map((user, index) => (
             <TopRankBox key={user.rank} position={index}>
               <RankText>{user.rank}</RankText>
-              <TopRankProfile source={user.image} resizeMode="contain" isFirstPlace={user.rank === 1}/>
-              <RankText>{user.name}</RankText>
-              <PercentText>Level {user.level}</PercentText>
+              <TopRankProfile 
+                source={user.rank === 1 ? require('../assets/rank1.png') : require('../assets/rank2.png')} 
+                resizeMode="contain" 
+                isFirstPlace={user.rank === 1}
+              />
+              <RankText>{user.treeName}</RankText>
+              <PercentText>Level {user.treeLevel} {user.growth}%</PercentText>
             </TopRankBox>
           ))}
         </TopRankContainer>
@@ -200,9 +205,9 @@ const Rank = () => {
             <ProfileBox key={user.rank}>
               <TextWrapper>
                 <RankText>{user.rank}</RankText>
-                <RankProfile source={user.image} resizeMode="contain" />
-                <RankText>{user.name}</RankText>
-                <PercentText>Level {user.level}</PercentText>
+                <RankProfile source={require('../assets/rank2.png')} resizeMode="contain" />
+                <RankText>{user.treeName}</RankText>
+                <PercentText>Level {user.treeLevel} {user.growth}%</PercentText>
               </TextWrapper>
             </ProfileBox>
           ))}

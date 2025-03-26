@@ -13,14 +13,21 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMotionUsageDescription": "이 앱은 사용자의 걸음 수를 추적하여 건강 정보를 제공합니다."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.riny127.myapp"
+      "package": "com.riny127.myapp",
+      "permissions": [
+        "ACTIVITY_RECOGNITION"
+      ],
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,7 +38,8 @@
       }
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-secure-store"
     ]
   }
 }

@@ -1,9 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Animated, PanResponder, View, Text, StyleSheet, Modal as RNModal, TouchableOpacity } from "react-native";
 import styled from "styled-components/native";
-import { useNavigation } from "@react-navigation/native";
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen";
 import Svg, { Path } from "react-native-svg";
+import { getMissionList, completeMission, checkAttendanceMission, verifyReceiptMission, walkStepsMission, useTumblerMission } from "../api/MissionApi";
+import { getAccessToken } from "../Auth";
+import { checkMissionForBadge } from "../api/BadgeApi";
+import { PermissionsAndroid, Platform } from 'react-native';
+import { Pedometer } from 'expo-sensors';
+import * as ImagePicker from 'expo-image-picker';
+import ToastAlarm from "./ToastAlarm";
+import * as SecureStore from 'expo-secure-store';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 // 모달 외부 스타일
 const ModalWrapper = styled.View`
@@ -80,7 +88,7 @@ const ModalContent = styled.View`
 // 각 미션 아이템들
 const MissionItem = styled(TouchableOpacity)`
   border-radius: 10px;
-  background-color: #effbfb;
+  background-color: ${({ disabled }) => (disabled ? '#E2E2E2' : '#effbfb')};
   height: 64px;
   width: 100%;
   margin-bottom: 16px;
@@ -130,10 +138,45 @@ const MissionText = styled.Text`
   left: 87px;
 `;
 
+async function requestActivityRecognitionPermission() {
+  if (Platform.OS === 'android') {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION
+      );
+
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        console.log('Activity recognition permission granted');
+      } else {
+        console.log('Activity recognition permission denied');
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  }
+}
+
 const Modal = ({ visible, onClose }) => {
+  const [missions, setMissions] = useState([]);
   const slideAnim = useRef(new Animated.Value(300)).current;
   const backgroundOpacity = useRef(new Animated.Value(0)).current;
   const [startPos, setStartPos] = useState(0);
+  const [steps, setSteps] = useState(0);  // 걸음 수 상태
+  const [lastUpdatedDate, setLastUpdatedDate] = useState("");
+
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
+  // 각 미션 완료 여부 상태 추가
+  const [isAttendanceMissionCompleted, setIsAttendanceMissionCompleted] = useState(false);
+  const [isConsumeMissionCompleted, setIsConsumeMissionCompleted] = useState(false);
+  const [isTumblerMissionCompleted, setIsTumblerMissionCompleted] = useState(false);
+  const [isStepMissionCompleted, setIsStepMissionCompleted] = useState(false);
+
+  const [badgeMessage, setBadgeMessage] = useState(""); // 획득한 뱃지 이름
+  const [showToast, setShowToast] = useState(false); // Toast 표시 여부
 
   const panResponder = PanResponder.create({
     // 터치가 시작되었을 때 PanResponder를 활성화할지 여부를 결정
@@ -204,13 +247,349 @@ const Modal = ({ visible, onClose }) => {
     }
   }, [visible]);
 
+  useEffect(() => {
+    const loadSteps = async () => {
+      await requestActivityRecognitionPermission(); // 권한 요청 추가
+      
+      const today = getTodayDate();
+      const savedSteps = await getSavedSteps(today); // 오늘 날짜의 걸음 수를 가져옴
+      setSteps(savedSteps);
+      setLastUpdatedDate(today);
+    };
+    loadSteps();
+
+    const subscription = Pedometer.watchStepCount(result => {
+      const currentSteps = result.steps;
+      setSteps(currentSteps);
+      saveSteps(currentSteps); // 오늘 날짜의 걸음 수만 저장
+    });
+
+    return () => subscription.remove(); // 컴포넌트 언마운트 시 구독 해제
+  }, []);
+
+  const saveSteps = async (steps) => {
+    try {
+      const today = getTodayDate();
+      await SecureStore.setItemAsync(today, JSON.stringify(steps)); // 오늘 날짜에 해당하는 걸음 수 저장
+    } catch (error) {
+      console.error('걸음 수 저장 오류:', error);
+    }
+  };
+
+  const getSavedSteps = async (date) => {
+    try {
+      const savedSteps = await SecureStore.getItemAsync(date); // 특정 날짜의 걸음 수를 가져옴
+      return savedSteps ? JSON.parse(savedSteps) : 0; // 값이 없으면 0 반환
+    } catch (error) {
+      console.error('걸음 수 불러오기 오류:', error);
+      return 0;
+    }
+  };
+
+  useEffect(() => {
+    const fetchMissions = async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) throw new Error("토큰을 찾을 수 없습니다.");
+    
+        const response = await getMissionList(token);
+        console.log("미션 목록:", response);
+    
+        const missionList = response?.missions;
+        if (Array.isArray(missionList)) {
+          missionList.forEach((mission) => {
+            if (mission.missionType === "ATTENDANCE" && mission.completed) {
+              setIsAttendanceMissionCompleted(true);
+            }
+            if (mission.missionType === "RECEIPT" && mission.completed) {
+              setIsConsumeMissionCompleted(true);
+            }
+            if (mission.missionType === "TUMBLER" && mission.completed) {
+              setIsTumblerMissionCompleted(true);
+            }
+            if (mission.missionType === "WALK" && mission.completed) {
+              setIsStepMissionCompleted(true);
+            }
+          });
+        }
+      } catch (error) {
+        console.error("미션 목록 조회 오류:", error);
+      }
+    };
+  
+    fetchMissions();
+  }, []);
+
+  const handleCheckMissionForBadge = async (missionId) => {
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("토큰을 찾을 수 없습니다.");
+
+      // 미션 목록을 조회하여 뱃지 획득을 체크
+      const response = await checkMissionForBadge(token, missionId);
+      console.log("미션 완료 뱃지 체크:", response);
+
+      // 뱃지를 획득한 경우
+      if (response.success) {
+        setBadgeMessage(response.badgeName); // 뱃지 이름 설정
+        setShowToast(true); // Toast 표시
+      }
+    } catch (error) {
+      console.error("뱃지 체크 오류:", error);
+    }
+  };
+
   const currentDate = new Date();
   const months = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
   const monthName = months[currentDate.getMonth()];
-  const formattedDate = `${currentDate.getFullYear()}년 ${currentDate.getMonth()}월 ${currentDate.getDate()}일`; // 날짜를 형식에 맞게 변환
+  const formattedDate = `${currentDate.getFullYear()}년 ${currentDate.getMonth() + 1}월 ${currentDate.getDate()}일`; // 날짜를 형식에 맞게 변환
+
+  const handleCheckAttendance = async () => {
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("토큰을 찾을 수 없습니다.");
+  
+      // 미션 목록 조회
+      const response = await getMissionList(token);
+      console.log("미션 목록:", response);
+  
+      const missionList = response?.missions;
+      if (!Array.isArray(missionList)) {
+        throw new Error("미션 목록이 배열이 아닙니다.");
+      }
+  
+      // "출석 체크" 미션 찾기 (type이 "attendance"인 미션)
+      const attendanceMission = missionList.find(missions => missions.missionType === "ATTENDANCE" && !missions.completed);
+      console.log("출석 체크 미션:", attendanceMission);  // 여기서 로그로 확인
+  
+      if (attendanceMission) {
+        const missionId = attendanceMission.id;  // 출석 체크 미션의 ID
+        console.log("Completing mission with ID:", missionId);
+  
+        // 출석 체크 미션 완료
+        const checkAttendanceResponse = await checkAttendanceMission(token);
+        console.log("출석 체크 완료 응답:", checkAttendanceResponse);
+  
+        // 미션 수행 완료
+        const missionCompletionResponse = await completeMission(token, missionId);
+        console.log("미션 완료 응답:", missionCompletionResponse);
+  
+        // 출석 체크 미션 완료 상태 변경
+        setIsAttendanceMissionCompleted(true);
+        handleCheckMissionForBadge(missionId);
+        alert("출석 체크 미션을 완료했습니다!");
+      } else {
+        alert("출석 체크 미션이 완료되었거나 찾을 수 없습니다.");
+      }
+    } catch (error) {
+      console.error("출석 체크 미션 완료 오류:", error);
+      alert("출석 체크 미션을 완료하지 못했습니다.");
+      setIsAttendanceMissionCompleted(false);
+    }
+  };
+
+  const handleCheckWalkMission = async () => {
+    try {
+      if (steps >= 3000 && !isStepMissionCompleted) {
+        await completeWalkMission();
+      } else {
+        alert(`3000보를 달성해야 합니다.`);
+      }
+    } catch (error) {
+      console.error("걷기 미션 완료 오류:", error);
+      alert("걷기 미션을 완료할 수 없습니다.");
+    }
+  };  
+
+  const completeWalkMission = async () => {
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("토큰을 찾을 수 없습니다.");
+
+      // 미션 목록 조회
+      const response = await getMissionList(token);
+      console.log("미션 목록:", response);
+
+      const missionList = response?.missions;
+      if (!Array.isArray(missionList)) {
+        throw new Error("미션 목록이 배열이 아닙니다.");
+      }
+
+      // "3000보 걷기" 미션 찾기
+      const walkMission = missionList.find(mission => mission.missionType === "WALK" && !mission.completed);
+      console.log("3000보 걷기 미션:", walkMission);
+
+      if(walkMission){
+        const missionId = walkMission.id;  // 미션 ID
+        console.log("Completing walk with ID:", missionId);
+
+        const missionCompletionResponse = await walkStepsMission(token);
+        console.log("3000보 이상 걷기 미션 완료:", missionCompletionResponse);
+
+        setIsStepMissionCompleted(true);
+
+        handleCheckMissionForBadge(missionId);
+        
+        alert("3000보 걷기 미션을 완료했습니다!");
+      }
+    } catch (error) {
+      console.error("미션 완료 오류:", error);
+      alert("미션 완료에 실패했습니다.");
+    }
+  };  
+
+  // 소비 내역 미션 핸들러
+  const handleUploadReceipt = async () => {
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("토큰을 찾을 수 없습니다.");
+
+      // 미션 목록 조회
+      const response = await getMissionList(token);
+      console.log("미션 목록:", response);
+
+      const missionList = response?.missions;
+      if (!Array.isArray(missionList)) {
+        throw new Error("미션 목록이 배열이 아닙니다.");
+      }
+  
+      // "소비 내역 업로드" 미션 찾기
+      const receiptMission = missionList.find(mission => mission.missionType === "RECEIPT" && !mission.completed);
+      console.log("소비 내역 업로드 미션:", receiptMission);
+
+      if (receiptMission) {
+        const missionId = receiptMission.id;  // 미션 ID
+        console.log("Completing mission with ID:", missionId);
+  
+        // 사용자에게 이미지 선택 UI를 제공
+        let result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.All,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 1,
+        });
+
+        console.log(result);
+    
+        if (result.canceled) {
+          alert("이미지 선택이 취소되었습니다.");
+          return;
+        }
+    
+        // 선택된 이미지
+        const receiptFile = {
+          uri: result.assets[0].uri,
+          type: "image/jpeg",
+          name: "receipt.jpg",
+        };
+
+        // 소비 내역 인증 미션 완료
+        const verifyResponse = await verifyReceiptMission(token, receiptFile);
+        console.log("소비 내역 업로드 응답:", verifyResponse);
+
+        // 미션 완료 처리
+        const missionCompletionResponse = await completeMission(token, missionId);
+        console.log("미션 완료 응답:", missionCompletionResponse);
+
+        // 소비 내역 미션 완료 상태 변경
+        setIsConsumeMissionCompleted(true);
+        handleCheckMissionForBadge(missionId);
+        alert("소비 내역 인증이 완료되었습니다!");
+      } else {
+        alert("소비 내역 업로드 미션이 완료되었거나 찾을 수 없습니다.");
+      }
+    } catch (error) {
+      console.error("소비 내역 업로드 오류:", error);
+      alert("소비 내역 업로드에 실패했습니다.");
+    }
+  };
+
+  // 텀블러 인증 핸들러
+  const handleUseTumbler = async () => {
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("토큰을 찾을 수 없습니다.");
+
+      const response = await getMissionList(token);
+      console.log("미션 목록:", response);
+
+      const missionList = response?.missions;
+      if (!Array.isArray(missionList)) {
+        throw new Error("미션 목록이 배열이 아닙니다.");
+      }
+    
+      const tumblerMission = missionList.find(
+        (mission) => mission.missionType === "TUMBLER" && !mission.completed
+      );
+      console.log("텀블러 인증 미션:", tumblerMission);
+
+      if (tumblerMission) {
+        const missionId = tumblerMission.id;
+        console.log("Completing mission with ID:", missionId);
+
+        // 카메라 권한 요청
+        const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+        if (permissionResult.status !== 'granted') {
+          alert("카메라 권한이 필요합니다.");
+          return;
+        }
+
+        // 카메라 실행하여 사진 찍기
+        let result = await ImagePicker.launchCameraAsync({
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 1,
+        });
+
+        console.log(result);
+
+        if (result.canceled) {
+          alert("사진 촬영이 취소되었습니다.");
+          return;
+        }
+
+        // 촬영된 이미지 압축 (파일 크기 줄이기)
+        const manipResult = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [],
+          { compress: 0.3, format: ImageManipulator.SaveFormat.JPEG }
+        );
+
+        const tumblerFile = {
+          uri: manipResult.uri,
+          type: "image/jpeg",
+          name: "tumbler.jpg",
+        };
+
+        // 텀블러 인증 API 호출 (form-data로 파일 전송)
+        const tumblerResponse = await useTumblerMission(token, tumblerFile);
+        console.log("텀블러 미션 완료 응답:", tumblerResponse);
+
+        // 응답 체크: "미션 실패" 문자열이면 미션 완료 API 호출 중단
+        if (tumblerResponse === "미션 실패") {
+          alert("텀블러 인증에 실패했습니다. 다시 시도해주세요.");
+          return;
+        }
+
+        // 인증 API가 성공했을 경우에만 미션 완료 API 호출
+        const missionCompletionResponse = await completeMission(token, missionId);
+        console.log("미션 완료 응답:", missionCompletionResponse);
+
+        setIsTumblerMissionCompleted(true);
+        handleCheckMissionForBadge(missionId);
+        alert("텀블러 인증 미션을 완료했습니다!");
+      } else {
+        alert("텀블러 인증 미션이 완료되었거나 찾을 수 없습니다.");
+      }
+    } catch (error) {
+      console.error("텀블러 인증 미션 완료 오류:", error);
+      alert("텀블러 인증 미션을 완료하지 못했습니다.");
+      setIsTumblerMissionCompleted(false);
+    }
+  };
 
   return (
     <RNModal transparent={true} visible={visible} animationType="none" onRequestClose={onClose}>
@@ -247,7 +626,10 @@ const Modal = ({ visible, onClose }) => {
 
           <ModalContent>
             {/* 출석하기 */}
-            <MissionItem>
+            <MissionItem 
+              onPress={handleCheckAttendance}
+              disabled={isAttendanceMissionCompleted}
+            >
               <Circle><Icon source={require("../assets/water.png")} /></Circle>
               <MissionText>출석하고 물 받아가세요!</MissionText>
               <ArrowIcon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 27" fill="none">
@@ -255,48 +637,62 @@ const Modal = ({ visible, onClose }) => {
               </ArrowIcon>
             </MissionItem>
             {/* 소비 내역 업로드 */}
-            <MissionItem>
+            <MissionItem
+              onPress={handleUploadReceipt}
+              disabled={isConsumeMissionCompleted}
+            >
               <Circle><Icon source={require("../assets/water.png")} /></Circle>
               <MissionText>소비 내역 인증하기</MissionText>
               <ArrowIcon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 27" fill="none">
                 <Path d="M0.713867 23.8275L11.3072 13.5L0.713867 3.1725L3.97513 0L17.8528 13.5L3.97513 27L0.713867 23.8275Z" fill="#C2C2C2"/>
               </ArrowIcon>
             </MissionItem>
-            {/* 대중교통 이용 */}
-            <MissionItem>
+            {/* 텀블러 사용 */}
+            <MissionItem
+              onPress={handleUseTumbler}
+              disabled={isTumblerMissionCompleted}
+            >
               <Circle><Icon source={require("../assets/water.png")} /></Circle>
               <MissionText>텀블러 사용하기</MissionText>
               <ArrowIcon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 27" fill="none">
                 <Path d="M0.713867 23.8275L11.3072 13.5L0.713867 3.1725L3.97513 0L17.8528 13.5L3.97513 27L0.713867 23.8275Z" fill="#C2C2C2"/>
               </ArrowIcon>
             </MissionItem>
-            {/* 텀블러 사용 */}
-            <MissionItem>
+            {/* 3000걸음 걷기 */}
+            <MissionItem 
+              onPress={handleCheckWalkMission}
+              disabled={isStepMissionCompleted}
+            >
               <Circle><Icon source={require("../assets/water.png")} /></Circle>
-              <MissionText>3000걸음 걷기</MissionText>
+              <MissionText>
+                {isStepMissionCompleted ? "3000보 걷기" : `3000보 걷기 (${steps}/3000)`}
+              </MissionText>
               <ArrowIcon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 27" fill="none">
                 <Path d="M0.713867 23.8275L11.3072 13.5L0.713867 3.1725L3.97513 0L17.8528 13.5L3.97513 27L0.713867 23.8275Z" fill="#C2C2C2"/>
               </ArrowIcon>
             </MissionItem>
             {/* 잔반 줄이기 */}
-            <MissionItem>
+            {/* <MissionItem>
               <Circle><Icon source={require("../assets/fertilizer.png")} /></Circle>
-              <MissionText>Zero food waste at cafeteria</MissionText>
+              <MissionText>테스트</MissionText>
               <ArrowIcon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 27" fill="none">
                 <Path d="M0.713867 23.8275L11.3072 13.5L0.713867 3.1725L3.97513 0L17.8528 13.5L3.97513 27L0.713867 23.8275Z" fill="#C2C2C2"/>
               </ArrowIcon>
-            </MissionItem>
+            </MissionItem> */}
             {/* 5000걸음 이상 */}
-            <MissionItem>
+            {/* <MissionItem>
               <Circle><Icon source={require("../assets/fertilizer.png")} /></Circle>
-              <MissionText>Verify 5000 steps</MissionText>
+              <MissionText>테스트</MissionText>
               <ArrowIcon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 27" fill="none">
                 <Path d="M0.713867 23.8275L11.3072 13.5L0.713867 3.1725L3.97513 0L17.8528 13.5L3.97513 27L0.713867 23.8275Z" fill="#C2C2C2"/>
               </ArrowIcon>
-            </MissionItem>
+            </MissionItem> */}
           </ModalContent>
         </ModalWrapper>
       </Animated.View>
+
+      {/* 뱃지 획득 시 Toast 표시 */}
+      {showToast && <ToastAlarm badgeName={badgeMessage} />}
     </RNModal>
   );
 };

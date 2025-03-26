@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Text, Alert, TouchableWithoutFeedback, Keyboard, Platform, KeyboardAvoidingView } from "react-native";
+import { Text, Alert, TouchableWithoutFeedback, Keyboard, Platform, KeyboardAvoidingView, ActivityIndicator, ScrollView } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import styled from "styled-components/native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from '@expo/vector-icons';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen";
 import * as Font from "expo-font";
+import { sendVerificationCode, verifyCode, register } from "../api/SignupApi";
 
 // 전체 컨테이너
 const Container = styled.View`
@@ -52,9 +53,7 @@ const TitleText = styled.Text`
 `;
 
 const SigninForm = styled.View`
-  position: absolute;
-  top: ${hp("18%")}px;
-  left: ${wp("8%")}px;
+  margin: ${hp("18%")}px ${wp("8%")}px;
   gap: ${hp("1.2%")}px;
 `;
 
@@ -68,6 +67,12 @@ const QuestionText = styled.Text`
   color: #32b9b4;
 `;
 
+// InputField와 버튼을 감싸는 Row
+const InputRow = styled.View`
+  flex-direction: row;
+  align-items: center;
+`;
+
 const InputField = styled.TextInput`
   width: ${wp("85%")}px;
   background-color: #fff;
@@ -77,6 +82,21 @@ const InputField = styled.TextInput`
   height: ${hp("6.6%")}px;
   font-size: ${wp("4%")}px;
   color: #32b9b4;
+`;
+
+// 인증번호 전송 및 검증 버튼 스타일
+const SmallButton = styled.TouchableOpacity`
+  position: absolute;
+  right: ${wp("5%")}px;
+  background-color: ${props => props.disabled ? "#ccc" : "#32b9b4"};
+  padding-horizontal: ${wp("3%")}px;
+  padding-vertical: ${hp("0.7%")}px;
+  border-radius: ${wp("2%")}px;
+`;
+
+const SmallButtonText = styled.Text`
+  color: #fff;
+  font-size: ${wp("3.5%")}px;
 `;
 
 // 비밀번호 필드 컨테이너
@@ -103,12 +123,10 @@ const SuccessText = styled.Text`
 `;
 
 const NextButton = styled.TouchableOpacity`
-  position: absolute;
-  left: ${wp("8%")}px;
-  bottom: ${hp("5%")};
   background-color: ${props => props.disabled ? "#ccc" : "#32b9b4"};
   width: ${wp("85%")}px;
   height: ${hp("7%")}px;
+  margin-top: ${hp("4%")}px;
   justify-content: center;
   align-items: center;
   border-radius: ${wp("5%")}px;
@@ -122,13 +140,19 @@ const NextButtonText = styled.Text`
 const SignupStep1 = () => {
   const navigation = useNavigation();
   const [fontLoaded, setFontLoaded] = useState(false);
-  const [email, setEmail] = useState(""); // 이메일 상태로 변경
-  const [primaryField, setPrimaryField] = useState("");
+  const [email, setEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState(""); // 핸드폰 번호 상태
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
+
+  // 상태: 인증번호 전송/검증 성공 여부, 로딩 상태 등
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [codeVerified, setCodeVerified] = useState(false);
 
   useEffect(() => {
     Font.loadAsync({
@@ -143,8 +167,57 @@ const SignupStep1 = () => {
   };
 
   const passwordsMatch = password === confirmPassword;
+  const isFormValid = email && isPasswordValid(password) && passwordsMatch && phoneNumber && codeVerified;
 
-  const isFormValid = email && primaryField && isPasswordValid(password) && passwordsMatch && phoneNumber;
+  // 이메일 인증번호 전송 함수
+  const handleSendCode = async () => {
+    if (!email) {
+      Alert.alert("알림", "이메일을 먼저 입력해주세요.");
+      return;
+    }
+    setIsSendingCode(true);
+    try {
+      await sendVerificationCode(email);
+      setCodeSent(true);
+      Alert.alert("성공", "인증번호가 전송되었습니다.");
+    } catch (error) {
+      Alert.alert("오류", error.message);
+    } finally {
+      setIsSendingCode(false);
+    }
+  };
+
+  // 인증번호 검증 함수
+  const handleVerifyCode = async () => {
+    if (!verificationCode) {
+      Alert.alert("알림", "인증번호를 입력해주세요.");
+      return;
+    }
+
+    setIsVerifyingCode(true);
+    try {
+      // verifyCode 함수가 email과 인증번호를 필요로 하므로, email을 포함하여 보냄
+      await verifyCode(email, String(verificationCode));
+      setCodeVerified(true);
+      Alert.alert("성공", "인증번호가 확인되었습니다.");
+    } catch (error) {
+      setCodeVerified(false);
+      Alert.alert("오류", error.message);
+    } finally {
+      setIsVerifyingCode(false);
+    }
+  };
+
+  // 회원가입 API 호출 후 다음 스탭으로 이동
+  const handleRegister = async () => {
+  try {
+    await register(email, password, confirmPassword, phoneNumber);
+    // 회원가입 성공 시 다음 화면으로 이동
+    navigation.navigate("LogIn");
+  } catch (error) {
+    Alert.alert("회원가입 실패", error.message);
+  }
+  };
 
   if (!fontLoaded) {
     return <Text>Loading...</Text>;
@@ -152,39 +225,57 @@ const SignupStep1 = () => {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"} // iOS와 Android에 따라 다른 동작
       style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
     >
-      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <Container>
           <BackgroundImage source={require("../assets/Background.png")} resizeMode="cover" />
+          <ScrollView contentContainerStyle={{ paddingBottom: hp("5%") }}>
           <Header>
             <LogoText>EcoStep</LogoText>
           </Header>
-
           <SigninForm>
             <TitleText>Get Started</TitleText>
 
             {/* 이메일 입력 */}
             <SigninWrapper>
               <QuestionText>이메일</QuestionText>
-              <InputField 
-                placeholder="이메일" 
-                value={email} 
-                onChangeText={setEmail} 
-                keyboardType="email-address"
-              />
+              <InputRow>
+                <InputField 
+                  placeholder="이메일" 
+                  value={email} 
+                  onChangeText={setEmail} 
+                  keyboardType="email-address"
+                />
+                <SmallButton 
+                  onPress={handleSendCode} 
+                  disabled={isSendingCode || codeSent}
+                >
+                  <SmallButtonText>발송</SmallButtonText>
+                </SmallButton>
+              </InputRow>
             </SigninWrapper>
             
             {/* 인증코드 입력 */}
             <SigninWrapper>
               <QuestionText>발송된 인증번호를 입력해주세요</QuestionText>
-              <InputField 
-                placeholder="인증번호" 
-                value={primaryField} 
-                onChangeText={setPrimaryField} 
-                keyboardType="number-pad"
-              />
+              <InputRow>
+                <InputField 
+                  placeholder="인증번호" 
+                  value={verificationCode} 
+                  onChangeText={setVerificationCode} 
+                  keyboardType="number-pad"
+                />
+               <SmallButton 
+                  onPress={handleVerifyCode} 
+                  disabled={isVerifyingCode || !verificationCode || codeVerified}
+                >
+                  <SmallButtonText>확인</SmallButtonText>
+                </SmallButton>
+              </InputRow>
+              {codeVerified && <SuccessText>인증번호가 확인되었습니다.</SuccessText>}
             </SigninWrapper>
             
 
@@ -235,13 +326,13 @@ const SignupStep1 = () => {
                 keyboardType="phone-pad"
               />
             </SigninWrapper>
-            
-          </SigninForm>
 
-          {/* 다음 버튼 */}
-          <NextButton disabled={!isFormValid} onPress={() => navigation.navigate("SelectTree")}>
-            <NextButtonText>Next</NextButtonText>
-          </NextButton>
+            {/* 다음 버튼 */}
+            <NextButton disabled={!isFormValid} onPress={handleRegister}>
+              <NextButtonText>Next</NextButtonText>
+            </NextButton>
+          </SigninForm>
+          </ScrollView>
         </Container>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>

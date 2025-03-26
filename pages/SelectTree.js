@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { Text, Alert, TouchableWithoutFeedback, Keyboard, Platform, KeyboardAvoidingView } from "react-native";
+import { Text, Alert, TouchableWithoutFeedback, Keyboard, Platform, KeyboardAvoidingView,ScrollView } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import styled from "styled-components/native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from '@expo/vector-icons';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen";
 import * as Font from "expo-font";
+import { setTreeName } from "../api/SignupApi";
+import { getAccessToken } from "../Auth";
+import { earnBeginnerBadge } from "../api/BadgeApi";
 import TreeImg from '../assets/splash4.png';
+import ToastAlarm from "../components/ToastAlarm";
 
 // 전체 컨테이너
 const Container = styled.View`
@@ -62,10 +66,9 @@ const TreeImage = styled.Image`
 `;
 
 const InputField = styled.TextInput`
-  position: absolute;
-  top: ${hp("74%")}px;
-  left: ${wp("8%")}px;
   width: ${wp("85%")}px;
+  margin-top: ${hp("68%")};
+  margin-left: ${wp("8%")}px;
   background-color: #fff;
   border-radius: ${wp("5%")}px;
   border: 1px solid #32b9b4;
@@ -77,32 +80,28 @@ const InputField = styled.TextInput`
 `;
 
 const NextButton = styled.TouchableOpacity`
-  position: absolute;
-  top: ${hp("88%")}px;
-  left: ${wp("8%")}px;
   background-color: ${props => props.disabled ? "#ccc" : "#32b9b4"};
   width: ${wp("85%")}px;
   height: ${hp("7%")}px;
   justify-content: center;
   align-items: center;
   border-radius: ${wp("5%")}px;
+  margin-top: ${hp("5%")};
+  margin-left: ${wp("8%")}px;
 `;
 
 const NextButtonText = styled.Text`
-  color: #fff;
-  font-size: ${wp("5%")}px;
+  color: #FFF;
+  font-family: "Inter";
+  font-size: ${wp("4%")}px;
 `;
 
 const SelectTree = () => {
   const navigation = useNavigation();
   const [fontLoaded, setFontLoaded] = useState(false);
-  const [name, setName] = useState(""); // 이메일 상태로 변경
-  const [primaryField, setPrimaryField] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState(""); // 핸드폰 번호 상태
+  const [name, setName] = useState(""); // 나무 이름 상태
+  const [badgeMessage, setBadgeMessage] = useState(""); // 획득한 뱃지 이름
+  const [showToast, setShowToast] = useState(false); // Toast 표시 여부
 
   useEffect(() => {
     Font.loadAsync({
@@ -114,13 +113,43 @@ const SelectTree = () => {
     return <Text>Loading...</Text>;
   }
 
+  // 완료 버튼 클릭 시
+  const handleNext = async () => {
+    if (!name) return;
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("사용자 토큰을 찾을 수 없습니다.");
+      }
+
+      // 나무 이름 짓기 API 호출
+      await setTreeName(token, name);
+
+      // 비기너 뱃지 API를 한 번만 호출하고 그 결과를 상태에 저장
+      const beginnerBadge = await earnBeginnerBadge(token);
+      if (beginnerBadge) {
+        setBadgeMessage(beginnerBadge);
+        setShowToast(true);
+      }
+
+      // 토스트가 일정 시간 동안 표시된 후 Main 화면으로 이동 (예: 3초 딜레이)
+      setTimeout(() => {
+        navigation.navigate("Main");
+      }, 3000);
+    } catch (error) {
+      Alert.alert("오류", error.message);
+    }
+  };
+
   return (
-      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-        <Container>
-          <BackgroundImage source={require("../assets/Background.png")} resizeMode="cover" />
-          <Header>
-            <LogoText>EcoStep</LogoText>
-          </Header>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+          <Container>
+            <BackgroundImage source={require("../assets/Background.png")} resizeMode="cover" />
+            <Header>
+              <LogoText>EcoStep</LogoText>
+            </Header>
 
             <TitleText>나무에 이름을 지어주세요</TitleText>
 
@@ -133,12 +162,17 @@ const SelectTree = () => {
               onChangeText={setName} 
             />
 
-          {/* 다음 버튼 */}
-          <NextButton disabled={!name} onPress={() => navigation.navigate("Main")}>
-            <NextButtonText>완료</NextButtonText>
-          </NextButton>
-        </Container>
-      </TouchableWithoutFeedback>
+            {/* 완료 버튼 */}
+            <NextButton disabled={!name} onPress={handleNext}>
+              <NextButtonText>완료</NextButtonText>
+            </NextButton>
+
+            {/* 비기너 뱃지 획득 시 Toast 표시 */}
+            {showToast && <ToastAlarm badgeName={badgeMessage} />}
+          </Container>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 };
 

@@ -4,6 +4,8 @@ import styled from "styled-components/native";
 import { useNavigation } from "@react-navigation/native";
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen";
 import * as Font from "expo-font";
+import { login } from "../api/LoginApi";
+import { isLoggedIn } from "../Auth";
 
 // 전체 컨테이너
 const Container = styled.View`
@@ -119,8 +121,10 @@ const LoginButtonText = styled.Text`
   color: #fff;
 `;
 
-const LogIn = () => {
+const LogIn = ({ onLoginSuccess }) => {
   const [fontLoaded, setFontLoaded] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -138,6 +142,30 @@ const LogIn = () => {
     return <Text>Loading...</Text>;
   }
 
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("입력 오류", "이메일과 비밀번호를 모두 입력해 주세요.");
+      return;
+    }
+
+    try {
+      // 로그인 API 호출
+      await login(email, password);  // 로그인 함수 호출
+
+      // 로그인 후 isLoggedIn() 호출해서 로그인 상태 확인
+      const isUserLoggedIn = await isLoggedIn();
+
+      if (isUserLoggedIn){
+        onLoginSuccess();
+      }else{
+        Alert.alert("로그인 실패", "로그인에 실패했습니다.");
+      }
+    } catch (error) {
+      // 로그인 실패 시 오류 메시지 표시
+      Alert.alert("로그인 실패", error.message || "로그인에 실패했습니다.");
+    }
+  };
+
   return (
     <Container>
       <BackgroundImage source={require("../assets/Background.png")} resizeMode="cover" />
@@ -150,21 +178,33 @@ const LogIn = () => {
       {/* 로그인 입력 컨테이너 */}
       <LoginContainer>
         <TitleText>Log in</TitleText>
-
+        
         {/* 로그인 입력 필드 */}
         <InputContainer>
-          <InputField placeholder="your email" placeholderTextColor="#D1D1D1" />
-          <InputField placeholder="password" placeholderTextColor="#D1D1D1" secureTextEntry />
+          <InputField 
+            placeholder="your email"
+            placeholderTextColor="#D1D1D1"
+            keyboardType="email-address"
+            value={email}  // 상태 연결
+            onChangeText={(text) => setEmail(text)}  // 상태 업데이트
+          />
+          <InputField
+            placeholder="password"
+            placeholderTextColor="#D1D1D1"
+            secureTextEntry
+            value={password}  // 상태 연결
+            onChangeText={(text) => setPassword(text)}  // 상태 업데이트
+          />
 
           {/* 회원가입 & 비밀번호 찾기 감싸는 부분 */}
           <Wrapper>
             <ActionText onPress={() => navigation.navigate("SignupStep1")}>Sign up</ActionText>
-            <ActionText onPress={() => navigation.navigate("ForgotPwd")}>Forgot password?</ActionText>
+            <ActionText onPress={() => navigation.navigate("")}></ActionText>
           </Wrapper>
         </InputContainer>
 
         {/* 로그인 버튼 */}
-        <LoginButton onPress={() => navigation.replace("Main")}>
+        <LoginButton onPress={handleLogin}>
           <LoginButtonText>Log in</LoginButtonText>
         </LoginButton>
       </LoginContainer>

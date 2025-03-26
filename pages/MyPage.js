@@ -5,7 +5,10 @@ import { useNavigation } from "@react-navigation/native";
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen";
 import * as Font from "expo-font";
 import Svg, { Path } from "react-native-svg";
+import * as SecureStore from "expo-secure-store";
 import Modal from "../components/Modal";
+import { getMyPage } from "../api/MypageApi";
+import { getAccessToken } from "../Auth";
 
 // 전체 컨테이너
 const Container = styled.View`
@@ -183,10 +186,13 @@ const TopWrapper = styled.View`
 
 // 전체 프로그레스 바 (친환경 활동 요약)
 const ProgressBarContainer = styled.View`
+  position: absolute;
+  top: ${hp("4%")}px;
+  left: ${wp("4%")}px;
   background-color: #d1d1d1;
   height: ${hp("2%")}px;
   border-radius: ${hp("1.5%")}px;
-  margin-top: ${hp("0.5%")}px;
+  margin-top: ${hp("1.2%")};
   flex-direction: row;
   overflow: hidden;
 `;
@@ -196,12 +202,21 @@ const ActivitySegment = styled.View`
   height: 100%;
 `;
 
+const ActivityListContainer = styled.View`
+  position: absolute;
+  top: ${hp("8%")}px;
+  left: ${wp("4%")}px;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-top: ${hp("0.4%")}px;
+  gap: ${hp("1%")};
+`;
+
 // 개별 항목 컨테이너
 const ActivityRow = styled.View`
   flex-direction: row;
-  align-items: center;
   justify-content: space-between;
-  margin-top: ${hp("0.5%")}px;
+  width: 100%;
   padding: 0 ${wp("2%")}px;
 `;
 
@@ -237,32 +252,36 @@ const DateRow = styled.View`
 `;
 
 const DateText = styled.Text`
-  font-size: ${wp("3.5%")}px;
+  font-size: ${wp("3.8%")}px;
   font-weight: 500;
   font-family: "Inter-Medium";
   color: #32b9b4;
   margin-left: ${wp("2%")}px;
 `;
 
+// 각 항목에 대한 설명
+const activityDescriptions = {
+  "WALK": "3000걸음 이상 걷기",
+  "RECEIPT": "소비 내역 인증하기",
+  "ATTENDANCE": "출석하기",
+  "TUMBLER": "텀블러 사용하기",
+};
+
 const MyPage = () => {
   const [fontLoaded, setFontLoaded] = useState(false);
-  const navigation = useNavigation(); // 네비게이션 훅 사용
-  const [name, setName] = useState("swuni")
-  const [amount, setAmount] = useState(15); // 절감량
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const goal = 20;
-  const badgeCount = 10;
-  const completedMissions = 3;
-  const totalMissions = 6;
-  const currentLevel = 1;
+  const navigation = useNavigation();
 
-  // 친환경 활동 데이터 예시
-  const activities = [
-    { name: "텀블러 사용하기", amount: 5, color: "#32B9B4" },
-    { name: "대중교통 이용하기", amount: 3, color: "#80CECC" },
-    { name: "잔반없는 식사하기", amount: 4, color: "#B9F1EF" },
-    { name: "기타", amount: 3, color: "#D1D1D1" },
-  ];
+  const [name, setName] = useState("")
+  const goal = 20;
+  const [amount, setAmount] = useState(0); // 절감량
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [badgeCount, setBadgeCount] = useState(0);
+  const [completedMissions, setCompletedMissions] = useState(0);
+  const [totalMissions, setTotalMissions] = useState(4);
+  const [currentLevel, setCurrentLevel] = useState("");
+
+  // 활동 데이터 동적 업데이트
+  const [activities, setActivities] = useState([]);
 
   const [modalVisible, setModalVisible] = useState(false);  // 모달의 표시 여부
 
@@ -282,8 +301,48 @@ const MyPage = () => {
       setFontLoaded(true);
     };
 
+    const fetchProfile = async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) throw new Error("토큰을 찾을 수 없습니다.");
+
+        const profileData = await getMyPage(token);
+        console.log("프로필 데이터:", profileData);
+
+        // 데이터 상태 업데이트
+        setName(profileData.profile.treeName || "User");
+        setBadgeCount(profileData.profile.badgeCount || 0);
+        setCompletedMissions(profileData.profile.missionCount || 0);
+        setCurrentLevel(profileData.profile.treeLevel || 1);
+        setAmount(profileData.carbonStats.carbonReduction);
+
+        // 활동 퍼센트 비율 데이터를 가져오고, 순서대로 정렬
+        const missionPercentages = profileData.missionProgress.missionPercentages || {};
+        const activityList = Object.keys(missionPercentages).map((key) => ({
+          name: activityDescriptions[key] || key,
+          percent: missionPercentages[key],
+        }));
+
+        // 퍼센트가 높은 순으로 정렬
+        activityList.sort((a, b) => b.percent - a.percent);
+
+        // 색상 배열 (퍼센트가 높은 순서대로)
+        const colors = ['#32B9B4', '#80CECC', '#B9F1EF', '#D1D1D1'];
+
+        // 색상을 퍼센트가 높은 순서대로 할당
+        activityList.forEach((activity, index) => {
+          activity.color = colors[index] || '#D1D1D1'; // 색상이 부족한 경우 기본 색상 설정
+        });
+
+        setActivities(activityList);
+      } catch (error) {
+        console.error("프로필 불러오기 실패:", error);
+      }
+    };
+
     loadFonts();
-  }, []);
+    fetchProfile();
+  }, [badgeCount, completedMissions, currentLevel, activities]);
 
   const handleArrowClick = (direction) => {
     const newDate = new Date(currentMonth);
@@ -356,7 +415,7 @@ const MyPage = () => {
           <GoalTitleText>탄소 줄이기 목표치</GoalTitleText>
           <GoalBox>
             <GoalText>탄소 절감량</GoalText>
-            <GoalAmount>{amount}/{goal}</GoalAmount>
+            <GoalAmount>{Math.floor(amount * 10)}/{goal}</GoalAmount>
             {[...Array(2)].map((_, rowIndex) => (
               <IconRow key={rowIndex}>
                 {[...Array(10)].map((_, colIndex) => {
@@ -365,7 +424,7 @@ const MyPage = () => {
                     <GoalIcon
                       key={index}
                       source={require("../assets/tree.png")}
-                      opacity={index <= amount ? 1 : 0.3} // 절감량에 따라 투명도 조절
+                      opacity={index <= Math.floor(amount * 10) ? 1 : 0.3} // 절감량에 따라 투명도 조절
                     />
                   );
                 })}
@@ -374,58 +433,67 @@ const MyPage = () => {
           </GoalBox>
         </ContentContainer>
 
+        {/* 친환경 활동 통계 부분 */}
         <ContentContainer>
           <GoalTitleText>한 달 간의 활동</GoalTitleText>
           <GoalBox>
-            {/* 날짜 및 월 이동 부분 추가 */}
-            <DateRow>
-              <TouchableOpacity onPress={() => handleArrowClick("prev")}>
-                <Svg xmlns="http://www.w3.org/2000/svg" width="9" height="15" viewBox="0 0 9 15" fill="none">
-                  <Path d="M8.44331 1.97666L3.4703 7.62134L8.44331 13.266L6.91232 15L0.397461 7.62134L6.91232 0.242676L8.44331 1.97666Z" fill="#D1D1D1"/>
-                </Svg>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleArrowClick("next")}>
-                <Svg xmlns="http://www.w3.org/2000/svg" width="9" height="15" viewBox="0 0 9 15" fill="none">
-                  <Path d="M0.511719 1.97666L5.48472 7.62134L0.511719 13.266L2.04271 15L8.55756 7.62134L2.04271 0.242676L0.511719 1.97666Z" fill="#D1D1D1"/>
-                </Svg>
-              </TouchableOpacity>
-            </DateRow>
             {/* 친환경 활동 통계 */}
             <TopWrapper>
-              <GoalText>친환경 활동 통계</GoalText>
+              <GoalText>미션 통계</GoalText>
               <DateText>{formattedDate}</DateText>
+              {/* 날짜 및 월 이동 부분 추가 */}
+              {/* <DateRow>
+                <TouchableOpacity onPress={() => handleArrowClick("prev")}>
+                  <Svg xmlns="http://www.w3.org/2000/svg" width="9" height="15" viewBox="0 0 9 15" fill="none">
+                    <Path d="M8.44331 1.97666L3.4703 7.62134L8.44331 13.266L6.91232 15L0.397461 7.62134L6.91232 0.242676L8.44331 1.97666Z" fill="#D1D1D1"/>
+                  </Svg>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleArrowClick("next")}>
+                  <Svg xmlns="http://www.w3.org/2000/svg" width="9" height="15" viewBox="0 0 9 15" fill="none">
+                    <Path d="M0.511719 1.97666L5.48472 7.62134L0.511719 13.266L2.04271 15L8.55756 7.62134L2.04271 0.242676L0.511719 1.97666Z" fill="#D1D1D1"/>
+                  </Svg>
+                </TouchableOpacity>
+              </DateRow> */}
             </TopWrapper>
             
             {/* 전체 프로그레스 바 (항목 비율 반영) */}
-            <ProgressBarContainer>
-              {activities.map((activity, index) => {
-                const width = `${(activity.amount / goal) * 100}%`;
-                return (
-                  <ActivitySegment
-                    key={index}
-                    style={{ width, backgroundColor: activity.color }}
-                  />
-                );
-              })}
-            </ProgressBarContainer>
+            {activities.length > 0 ? (
+              <>
+                <ProgressBarContainer>
+                  {activities.map((activity, index) => {
+                    const width = `${activity.percent}%`;
+                    return (
+                      <ActivitySegment
+                        key={index}
+                        style={{ backgroundColor: activity.color, width }}
+                      />
+                    );
+                  })}
+                </ProgressBarContainer>
 
-            {/* 개별 항목 설명 (색상 원 & % 표시) */}
-            {activities.map((activity, index) => (
-              <ActivityRow key={index}>
-                <ActivityInfo>
-                  {/* 색상 동그라미 */}
-                  <ActivityCircle style={{ backgroundColor: activity.color }} />
-                  {/* 항목명 */}
-                  <ActivityText>{activity.name}</ActivityText>
-                </ActivityInfo>
-                {/* 절감 비율 % 표시 */}
-                <ActivityText style={{ color: activity.color }}>
-                  {(activity.amount / goal * 100).toFixed(1)}%
-                </ActivityText>
-              </ActivityRow>
-            ))}
-          </GoalBox>
-        </ContentContainer>
+                <ActivityListContainer>
+                  {/* 개별 항목 설명 (색상 원 & % 표시) */}
+                  {activities.map((activity, index) => (
+                    <ActivityRow key={index}>
+                      <ActivityInfo>
+                        {/* 색상 동그라미 */}
+                        <ActivityCircle style={{ backgroundColor: activity.color }} />
+                        {/* 항목명 */}
+                        <ActivityText>{activity.name}</ActivityText>
+                      </ActivityInfo>
+                      {/* 절감 비율 % 표시 */}
+                      <ActivityText style={{ color: activity.color }}>
+                        {Math.round(activity.percent)}%
+                      </ActivityText>
+                    </ActivityRow>
+                  ))}     
+                </ActivityListContainer>
+              </>
+            ) : (
+              <Text style={{ marginBottom: hp("6%"), marginLeft: wp("18%")}}>이번 달의 친환경 활동이 없습니다.</Text>
+            )}
+        </GoalBox>
+      </ContentContainer>
     </Container>
   );
 };

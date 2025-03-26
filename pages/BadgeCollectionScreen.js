@@ -6,6 +6,9 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-nat
 import * as Font from "expo-font";
 import TabBar from "../components/TabBar";
 import BackButton from "../components/BackButton";
+import { getUserBadges } from "../api/BadgeApi";
+import { getMyPage } from "../api/MypageApi";
+import { getAccessToken } from "../Auth";
 
 // 전체 컨테이너
 const Container = styled.View`
@@ -95,7 +98,7 @@ const BadgeText = styled.Text`
 
 // 뱃지 그리드 컨테이너 (여러 뱃지를 그리드로 배치)
 const BadgeGrid = styled.View`
-    height: ${hp("46%")}px;
+    height: ${hp("56%")}px;
     width: ${wp("90%")}px;
     padding: ${hp("2%")}px;
     flex-direction: row;
@@ -108,43 +111,25 @@ const BadgeGrid = styled.View`
 
 // 각 뱃지 아이템 (터치 가능)
 const BadgeItem = styled.TouchableOpacity`
-    width: ${wp("30%")}px;
-    height: ${wp("30%")}px;
+    width: ${wp("36%")}px;
+    height: ${wp("36%")}px;
     align-items: center;
     justify-content: center;
 `;
 
 // 뱃지 이미지
 const BadgeImage = styled.Image`
-  width: ${wp("24%")}px;
-  height: ${wp("24%")}px;
+  width: ${wp("26%")}px;
+  height: ${wp("26%")}px;
   resize-mode: contain;
 `;
 
 const BadgeCollectionScreen = () => {
     const navigation = useNavigation();
     const [fontLoaded, setFontLoaded] = useState(false);
-    const [name, setName] = useState("swuni")
-
-    useEffect(() => {
-        const loadFonts = async () => {
-        await Font.loadAsync({
-            "PartialSansKR": require("../assets/fonts/PartialSansKR.otf"),
-        });
-        setFontLoaded(true);
-        };
-        loadFonts();
-    }, []);
-
-    if (!fontLoaded) {
-        return <Text>Loading...</Text>;
-    }
-
-    // 6종류의 뱃지 키 배열
-    const badgeKeys = ["1", "2", "3", "4", "5", "6"];
-    // 획득한 뱃지 목록
-    const acquiredBadges = ["3"];
-
+    const [name, setName] = useState("")
+    const [badges, setBadges] = useState([]);
+    
     // 뱃지 이미지 매핑
     const badgeImages = {
         1: require("../assets/badge1.png"),
@@ -161,6 +146,54 @@ const BadgeCollectionScreen = () => {
         nobadge6: require("../assets/nobadge6.png")
     };
 
+    useEffect(() => {
+        const loadFonts = async () => {
+            await Font.loadAsync({
+                "PartialSansKR": require("../assets/fonts/PartialSansKR.otf"),
+            });
+            setFontLoaded(true);
+        };
+        loadFonts();
+
+        // 뱃지 API 호출
+        const fetchBadges = async () => {
+            try {
+                const token = await getAccessToken();
+                if (!token) throw new Error("토큰을 찾을 수 없습니다.");
+
+                const badgeData = await getUserBadges(token);
+                setBadges(badgeData);
+            } catch (error) {
+                console.error("뱃지 데이터 불러오기 실패:", error);
+            }
+        };
+        fetchBadges();
+
+        const fetchProfile = async () => {
+            try {
+                const token = await getAccessToken();
+                if (!token) throw new Error("토큰을 찾을 수 없습니다.");
+        
+                const profileData = await getMyPage(token);
+                console.log("프로필 데이터:", profileData);
+        
+                // 데이터 상태 업데이트
+                setName(profileData.profile.treeName || "User");
+            } catch (error) {
+            console.error("프로필 불러오기 실패:", error);
+            }
+        };
+
+        fetchProfile();
+    }, []);
+
+    if (!fontLoaded) {
+        return <Text>Loading...</Text>;
+    }
+
+    // 획득한 뱃지 개수 계산
+    const acquiredBadgeCount = badges.filter(badge => badge.acquired).length;
+
     return (
         <Container>
             <BackgroundImage source={require("../assets/Background.png")} resizeMode="cover" />
@@ -172,7 +205,7 @@ const BadgeCollectionScreen = () => {
             <ProfileImg resizeMode="contain" source={require('../assets/profile.png')}/>
             <TextContainer>
                 <TitleText>{name}님의 뱃지</TitleText>
-                <SubtitleText>{acquiredBadges.length}개의 뱃지를 획득했어요</SubtitleText>
+                <SubtitleText>{acquiredBadgeCount}개의 뱃지를 획득했어요</SubtitleText>
             </TextContainer>
             </ProfileContainer>
 
@@ -180,31 +213,29 @@ const BadgeCollectionScreen = () => {
                 <BadgeText>뱃지</BadgeText>
             </BadgeTitle>
 
-            <BadgeGrid>                
-                {badgeKeys.map((key, index) => {
-                const isAcquired = acquiredBadges.includes(key);
-                // 획득한 경우 badge{key}.png, 미획득시 nobadge{key}.png
-                const imageSource = isAcquired
-                ? badgeImages[key]
-                : badgeImages[`nobadge${key}`];
-                return (
-                    <BadgeItem
-                        key={index}
-                        onPress={() => {
-                            if (isAcquired) {
-                                navigation.navigate("Badge", { badgeKey: key });
-                            }
-                        }}
-                        activeOpacity={isAcquired ? 0.7 : 1}  // 미획득 뱃지일 경우 클릭 효과 없애기
-                        style={{ opacity: isAcquired ? 1 : 0.8 }}  // 미획득 뱃지는 불투명하게 처리
-                    >
-                    <BadgeImage source={imageSource} />
-                    </BadgeItem>
-                );
+            <BadgeGrid>
+                {badges.map((badge) => {
+                    const isAcquired = badge.acquired;
+                    // badge.badgeId에 따라 이미지 다르게 설정
+                    const imageSource = isAcquired
+                        ? badgeImages[badge.badgeId]
+                        : badgeImages[`nobadge${badge.badgeId}`];
+                    return (
+                        <BadgeItem
+                            key={badge.badgeId}
+                            onPress={() => {
+                                if (isAcquired) {
+                                    navigation.navigate("Badge", { badgeKey: badge.badgeId });
+                                }
+                            }}
+                            activeOpacity={isAcquired ? 0.7 : 1}
+                            style={{ opacity: isAcquired ? 1 : 0.8 }}
+                        >
+                            <BadgeImage source={imageSource} />
+                        </BadgeItem>
+                    );
                 })}
             </BadgeGrid>
-
-            <TabBar/>
         </Container>
     );
 };
