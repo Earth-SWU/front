@@ -102,7 +102,8 @@ const Splash = () => {
       {/* 로고 및 설명 */}
       <Header>
         <LogoText>EcoStep</LogoText>
-        <SloganText>오늘도 친환경에</SloganText><SloganText>한 걸음 다가가는 생활!</SloganText>
+        <SloganText>"Another step closer to</SloganText>
+        <SloganText>sustainable living today!"</SloganText>
       </Header>
 
       {/* 무한 스크롤 이미지 */}

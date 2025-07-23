@@ -8,6 +8,7 @@ import { getAccessToken } from "../Auth";
 import { checkMissionForBadge } from "../api/BadgeApi";
 import { PermissionsAndroid, Platform } from 'react-native';
 import { Pedometer } from 'expo-sensors';
+import { Camera } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import ToastAlarm from "./ToastAlarm";
 import * as SecureStore from 'expo-secure-store';
@@ -17,7 +18,8 @@ import * as ImageManipulator from 'expo-image-manipulator';
 const ModalWrapper = styled.View`
   background-color: #fff;
   width: 100%;
-  border-radius: 20px;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
   padding: 2px;
   position: absolute;
   bottom: 0;
@@ -138,23 +140,15 @@ const MissionText = styled.Text`
   left: 87px;
 `;
 
-async function requestActivityRecognitionPermission() {
+// 권한 요청 함수
+const requestActivityRecognitionPermission = async () => {
   if (Platform.OS === 'android') {
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION
-      );
-
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        console.log('Activity recognition permission granted');
-      } else {
-        console.log('Activity recognition permission denied');
-      }
-    } catch (err) {
-      console.warn(err);
+    const { status } = await Permissions.askAsync(Permissions.ACTIVITY_RECOGNITION);
+    if (status !== 'granted') {
+      alert('걸음 수 추적 권한이 필요합니다.');
     }
   }
-}
+};
 
 const Modal = ({ visible, onClose }) => {
   const [missions, setMissions] = useState([]);
@@ -248,23 +242,25 @@ const Modal = ({ visible, onClose }) => {
   }, [visible]);
 
   useEffect(() => {
+    requestActivityRecognitionPermission();
+
     const loadSteps = async () => {
-      await requestActivityRecognitionPermission(); // 권한 요청 추가
-      
       const today = getTodayDate();
-      const savedSteps = await getSavedSteps(today); // 오늘 날짜의 걸음 수를 가져옴
+      const savedSteps = await getSavedSteps(today); // 저장된 걸음 수 가져오기
       setSteps(savedSteps);
       setLastUpdatedDate(today);
     };
+
     loadSteps();
 
+    // 걸음 수 추적
     const subscription = Pedometer.watchStepCount(result => {
       const currentSteps = result.steps;
-      setSteps(currentSteps);
-      saveSteps(currentSteps); // 오늘 날짜의 걸음 수만 저장
+      setSteps(currentSteps); // 상태 업데이트
+      saveSteps(currentSteps); // 걸음 수 저장
     });
 
-    return () => subscription.remove(); // 컴포넌트 언마운트 시 구독 해제
+    return () => subscription.remove();
   }, []);
 
   const saveSteps = async (steps) => {
@@ -430,7 +426,6 @@ const Modal = ({ visible, onClose }) => {
         console.log("3000보 이상 걷기 미션 완료:", missionCompletionResponse);
 
         setIsStepMissionCompleted(true);
-
         handleCheckMissionForBadge(missionId);
         
         alert("3000보 걷기 미션을 완료했습니다!");
@@ -526,70 +521,70 @@ const Modal = ({ visible, onClose }) => {
       );
       console.log("텀블러 인증 미션:", tumblerMission);
 
-      if (tumblerMission) {
-        const missionId = tumblerMission.id;
-        console.log("Completing mission with ID:", missionId);
-
-        // 카메라 권한 요청
-        const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-        if (permissionResult.status !== 'granted') {
-          alert("카메라 권한이 필요합니다.");
-          return;
-        }
-
-        // 카메라 실행하여 사진 찍기
-        let result = await ImagePicker.launchCameraAsync({
-          allowsEditing: true,
-          aspect: [4, 3],
-          quality: 1,
-        });
-
-        console.log(result);
-
-        if (result.canceled) {
-          alert("사진 촬영이 취소되었습니다.");
-          return;
-        }
-
-        // 촬영된 이미지 압축 (파일 크기 줄이기)
-        const manipResult = await ImageManipulator.manipulateAsync(
-          result.assets[0].uri,
-          [],
-          { compress: 0.3, format: ImageManipulator.SaveFormat.JPEG }
-        );
-
-        const tumblerFile = {
-          uri: manipResult.uri,
-          type: "image/jpeg",
-          name: "tumbler.jpg",
-        };
-
-        // 텀블러 인증 API 호출 (form-data로 파일 전송)
-        const tumblerResponse = await useTumblerMission(token, tumblerFile);
-        console.log("텀블러 미션 완료 응답:", tumblerResponse);
-
-        // 응답 체크: "미션 실패" 문자열이면 미션 완료 API 호출 중단
-        if (tumblerResponse === "미션 실패") {
-          alert("텀블러 인증에 실패했습니다. 다시 시도해주세요.");
-          return;
-        }
-
-        // 인증 API가 성공했을 경우에만 미션 완료 API 호출
-        const missionCompletionResponse = await completeMission(token, missionId);
-        console.log("미션 완료 응답:", missionCompletionResponse);
-
-        setIsTumblerMissionCompleted(true);
-        handleCheckMissionForBadge(missionId);
-        alert("텀블러 인증 미션을 완료했습니다!");
-      } else {
+      if (!tumblerMission) {
         alert("텀블러 인증 미션이 완료되었거나 찾을 수 없습니다.");
+        return;
       }
+  
+      // 카메라 실행하여 사진 찍기
+      let result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+  
+      console.log(result);
+  
+      if (!result.assets || result.assets.length === 0) {
+        alert("사진 촬영이 취소되었습니다.");
+        return;
+      }
+  
+    // 촬영된 이미지 압축 (해상도 줄이기 + 파일 크기 줄이기)
+    const manipResult = await ImageManipulator.manipulateAsync(
+      result.assets[0].uri,
+      [{ resize: { width: 800, height: 600 } }],  // 해상도를 800x600으로 줄임
+      { compress: 0.2, format: ImageManipulator.SaveFormat.JPEG }  // 압축률 0.2로 조정
+    );
+  
+      const tumblerFile = {
+        uri: manipResult.uri,
+        type: "image/jpeg",
+        name: "tumbler.jpg",
+      };
+  
+      // 텀블러 인증 API 호출 (form-data로 파일 전송)
+      const tumblerResponse = await useTumblerMission(token, tumblerFile);
+      console.log("텀블러 미션 완료 응답:", tumblerResponse);
+  
+      if (tumblerResponse === "미션 실패") {
+        alert("텀블러 인증에 실패했습니다. 다시 시도해주세요.");
+        return;
+      }
+  
+      // 미션 완료 API 호출
+      const missionCompletionResponse = await completeMission(token, tumblerMission.id);
+      console.log("미션 완료 응답:", missionCompletionResponse);
+  
+      setIsTumblerMissionCompleted(true);
+      handleCheckMissionForBadge(tumblerMission.id);
+      alert("텀블러 인증 미션을 완료했습니다!");
     } catch (error) {
       console.error("텀블러 인증 미션 완료 오류:", error);
       alert("텀블러 인증 미션을 완료하지 못했습니다.");
       setIsTumblerMissionCompleted(false);
     }
   };
+  
+  // ✅ 권한을 미리 요청하는 useEffect 추가 (앱 실행 시 한 번만 실행)
+  useEffect(() => {
+    (async () => {
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        alert("카메라 권한이 필요합니다.");
+      }
+    })();
+  }, []);
 
   return (
     <RNModal transparent={true} visible={visible} animationType="none" onRequestClose={onClose}>
@@ -695,6 +690,11 @@ const Modal = ({ visible, onClose }) => {
       {showToast && <ToastAlarm badgeName={badgeMessage} />}
     </RNModal>
   );
+};
+
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split('T')[0]; // "YYYY-MM-DD" 형태로 반환
 };
 
 export default Modal;

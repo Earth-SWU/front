@@ -23,7 +23,7 @@ export const getUserBadges = async (token) => {
 
         return response.data;  // 뱃지 목록 응답 데이터 반환
     } catch (error) {
-        console.error("뱃지 조회 API 에러:", error);
+        console.log("뱃지 조회 API 에러:", error);
 
         // 에러 메시지 구성
         const errorMessage =
@@ -95,7 +95,7 @@ export const checkMissionForBadge = async (token, missionId) => {
         // 다른 메시지는 무시하고 그냥 종료
         return { message: "뱃지 지급 상태 확인 완료", data: response.data };
     } catch (error) {
-        console.error("뱃지 지급 API 에러:", error.response?.data || error.message);
+        console.log("뱃지 지급 API 에러:", error.response?.data || error.message);
 
         // 에러 메시지 구성
         const errorMessage =
